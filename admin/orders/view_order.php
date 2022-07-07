@@ -1,0 +1,137 @@
+﻿<?php if(isset($_GET['view'])): 
+require_once('../../config.php');
+endif;?>
+<?php if($_settings->chk_flashdata('success')): ?>
+<script>
+	alert_toast("<?php echo $_settings->flashdata('success') ?>",'success')
+</script>
+<?php endif;?>
+<?php 
+if(!isset($_GET['id'])){
+    $_settings->set_flashdata('error','No order ID Provided.');
+    redirect('admin/?page=orders');
+}
+$order = $conn->query("SELECT o.*,concat(c.firstname,' ',c.lastname) as client FROM `orders` o inner join clients c on c.id = o.client_id where o.id = '{$_GET['id']}' ");
+if($order->num_rows > 0){
+    foreach($order->fetch_assoc() as $k => $v){
+        $$k = $v;
+    }
+}else{
+    $_settings->set_flashdata('error','Order ID provided is Unknown');
+    redirect('admin/?page=orders');
+}
+?>
+<div class="card card-outline card-primary">
+    <div class="card-body">
+        <div class="conitaner-fluid">
+            <p><b>Tên khách hàng: <?php echo $client ?></b></p>
+            <?php if($order_type == 1): ?>
+            <p><b>Địa chỉ giao hàng <?php echo $delivery_address ?></b></p>
+            <?php endif; ?>
+            <table class="table-striped table table-bordered" id="list">
+                <colgroup>
+                    <col width="15%">
+                    <col width="35%">
+                    <col width="25%">
+                    <col width="25%">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>Tổng sản phẩm mỗi loại</th>
+                        <th>Tên sản phẩm</th>
+                        <th>Giá sản phẩm</th>
+                        <th>Tổng giá sản phẩm</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php 
+                        $olist = $conn->query("SELECT o.*,p.name,b.name as bname FROM order_list o inner join products p on o.product_id = p.id inner join brands b on p.brand_id = b.id where o.order_id = '{$id}' ");
+                        while($row = $olist->fetch_assoc()):
+                        foreach($row as $k => $v){
+                            $row[$k] = trim(stripslashes($v));
+                        }
+                    ?>
+                    <tr>
+                        <td><?php echo $row['quantity'] ?></td>
+                        <td>
+                            <p class="m-0"><?php echo $row['name']?></p>
+                            <p class="m-0"><small>Brand: <?php echo $row['bname']?></small></p>
+                           
+                        </td>
+                        <td class="text-right"><?php echo number_format($row['price']) ?></td>
+                        <td class="text-right"><?php echo number_format($row['price'] * $row['quantity']) ?></td>
+                    </tr>
+                    <?php endwhile; ?>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <th colspan='3'  class="text-right">Total</th>
+                        <th class="text-right"><?php echo number_format($amount) ?></th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        <div class="row">
+            <div class="col-6">
+                <p>Phương thức thanh toán <?php echo $payment_method ?></p>
+                <p>Tình trạng thanh toán <?php echo $paid == 0 ? '<span class="badge badge-light text-dark">Chưa thanh toán</span>' : '<span class="badge badge-success">Đã thanh toán</span>' ?></p>
+                <p>Loại đơn hàng <?php echo $order_type == 1 ? '<span class="badge badge-light text-dark">Để vận chuyển</span>' : '<span class="badge badge-light text-dark">Dỡ hàng</span>' ?></p>
+            </div>
+            <div class="col-6 row row-cols-2">
+                <div class="col-3">Tình trạng dơn hàng</div>
+                <div class="col-9">
+                <?php 
+                    switch($status){
+                        case '0':
+                            echo '<span class="badge badge-light text-dark">Chưa xử lí</span>';
+	                    break;
+                        case '1':
+                            echo '<span class="badge badge-primary">Đóng gói</span>';
+	                    break;
+                        case '2':
+                            echo '<span class="badge badge-warning">Đang giao hàng</span>';
+	                    break;
+                        case '3':
+                            echo '<span class="badge badge-success">Đã giao hàng</span>';
+	                    break;
+                        case '5':
+                            echo '<span class="badge badge-success">Dỡ hàng</span>';
+	                    break;
+                        default:
+                            echo '<span class="badge badge-danger">Hủy hàng</span>';
+	                    break;
+                    }
+                ?>
+                </div>
+                <?php if(!isset($_GET['view'])): ?>
+                <div class="col-3"></div>
+                <div class="col">
+                    <button type="button" id="update_status" class="btn btn-sm btn-flat btn-primary">Cập nhật trạng thái</button>
+                </div>
+                <?php endif; ?>
+                
+            </div>
+        </div>
+    </div>
+</div>
+<?php if(isset($_GET['view'])): ?>
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-dismiss="modal">Đóng</button>
+</div>
+<style>
+    #uni_modal>.modal-dialog>.modal-content>.modal-footer{
+        display:none;
+    }
+    #uni_modal .modal-body{
+        padding:0;
+    }
+</style>
+<?php endif; ?>
+<script>
+    $(function(){
+        $('#list td,#list th').addClass('py-1 px-2 align-middle')
+        $('#update_status').click(function(){
+            uni_modal("Update Status", "./orders/update_status.php?oid=<?php echo $id ?>&status=<?php echo $status ?>")
+        })
+    })
+</script>
